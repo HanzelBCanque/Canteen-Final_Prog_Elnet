@@ -1,0 +1,9 @@
+/.vs/
+/.rbxsync-trash/
+
+**/bin/
+**/obj/
+
+*.db
+*.db-shm
+*.db-wal
