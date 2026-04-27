@@ -8,10 +8,13 @@ public class SyncQueueService
 {
     public async Task QueueUpsertAsync(CanteenDbContext db, string entityType, string entitySyncId, DateTime changedAt)
     {
-        if (await db.SyncQueue.AnyAsync(item =>
-            item.EntityType == entityType &&
-            item.EntitySyncId == entitySyncId &&
-            item.Operation == "upsert"))
+        var existing = await db.SyncQueue
+            .FirstOrDefaultAsync(item =>
+                item.EntityType == entityType &&
+                item.EntitySyncId == entitySyncId &&
+                item.Operation == "upsert");
+
+        if (existing is not null)
         {
             return;
         }
