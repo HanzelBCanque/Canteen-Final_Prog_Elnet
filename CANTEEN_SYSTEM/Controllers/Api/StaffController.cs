@@ -17,12 +17,14 @@ public class StaffController(CanteenDbContext db, SyncQueueService syncQueue) : 
     {
         // Login stays database-backed so the same staff accounts work across devices.
         var employee = await db.Employees.FirstOrDefaultAsync(item =>
-            item.QrCode == request.QrCode.Trim().ToUpper() &&
-            item.Pin == request.Pin.Trim());
+            item.QrCode == request.QrCode.Trim().ToUpper());
 
-        return employee is null
-            ? Unauthorized(new { message = "Invalid QR code or PIN." })
-            : Ok(employee.ToDto());
+        if (employee is null || !BCrypt.Net.BCrypt.Verify(request.Pin.Trim(), employee.PinHash))
+        {
+            return Unauthorized(new { message = "Invalid QR code or PIN." });
+        }
+
+        return Ok(employee.ToDto());
     }
 
     [HttpGet("employees")]
@@ -67,7 +69,7 @@ public class StaffController(CanteenDbContext db, SyncQueueService syncQueue) : 
         {
             SyncId = Guid.NewGuid().ToString("N"),
             Name = name,
-            Pin = pin,
+            PinHash = BCrypt.Net.BCrypt.HashPassword(pin),
             Role = role,
             QrCode = $"EMP{DateTime.UtcNow.Ticks.ToString()[^6..]}",
             CreatedAt = DateTime.UtcNow,
