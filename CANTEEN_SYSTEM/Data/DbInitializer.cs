@@ -48,7 +48,7 @@ public static class DbInitializer
                 {
                     Name = "Admin",
                     QrCode = "ADMIN001",
-                    Pin = "1234",
+                    PinHash = BCrypt.Net.BCrypt.HashPassword("1234"),
                     Role = "admin",
                     CreatedAt = DateTime.UtcNow
                 });

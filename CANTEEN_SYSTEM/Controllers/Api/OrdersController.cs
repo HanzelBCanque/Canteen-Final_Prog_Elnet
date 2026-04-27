@@ -41,77 +41,88 @@ public class OrdersController(CanteenDbContext db, SyncQueueService syncQueue) :
             return BadRequest(new { message = "Order must contain at least one item." });
         }
 
-        var productIds = request.Items.Select(item => item.ProductId).Distinct().ToList();
-        var products = await db.Products
-            .Where(product => productIds.Contains(product.Id))
-            .ToDictionaryAsync(product => product.Id);
+        await using var transaction = await db.Database.BeginTransactionAsync();
 
-        if (products.Count != productIds.Count)
+        try
         {
-            return BadRequest(new { message = "One or more products were not found." });
-        }
+            var productIds = request.Items.Select(item => item.ProductId).Distinct().ToList();
+            var products = await db.Products
+                .Where(product => productIds.Contains(product.Id))
+                .ToDictionaryAsync(product => product.Id);
 
-        foreach (var line in request.Items)
-        {
-            if (line.Quantity <= 0)
+            if (products.Count != productIds.Count)
             {
-                return BadRequest(new { message = "Quantity must be greater than zero." });
+                return BadRequest(new { message = "One or more products were not found." });
             }
 
-            var product = products[line.ProductId];
-            if (product.Stock < line.Quantity)
+            foreach (var line in request.Items)
             {
-                return BadRequest(new { message = $"{product.Name} does not have enough stock." });
+                if (line.Quantity <= 0)
+                {
+                    return BadRequest(new { message = "Quantity must be greater than zero." });
+                }
+
+                var product = products[line.ProductId];
+                if (product.Stock < line.Quantity)
+                {
+                    return BadRequest(new { message = $"{product.Name} does not have enough stock." });
+                }
             }
-        }
 
-        var totalAmount = request.Items.Sum(line => products[line.ProductId].Price * line.Quantity);
-        var changedAt = DateTime.UtcNow;
-        var orderSyncId = Guid.NewGuid().ToString("N");
-        var order = new Order
-        {
-            SyncId = orderSyncId,
-            OrderNumber = $"ORD{DateTime.UtcNow:yyMMddHHmmssfff}",
-            PaymentMethod = request.PaymentMethod.Trim().ToLowerInvariant(),
-            Status = request.PaymentMethod.Equals("cash", StringComparison.OrdinalIgnoreCase) ? "paid" : "pending",
-            CreatedAt = changedAt,
-            LastModifiedAt = changedAt,
-            ReferenceNumber = string.IsNullOrWhiteSpace(request.ReferenceNumber) ? null : request.ReferenceNumber.Trim(),
-            AmountReceived = request.AmountReceived,
-            Change = request.AmountReceived.HasValue ? request.AmountReceived.Value - totalAmount : null,
-            TotalAmount = totalAmount
-        };
-
-        foreach (var line in request.Items)
-        {
-            var product = products[line.ProductId];
-            product.SyncId ??= Guid.NewGuid().ToString("N");
-            // Reduce inventory at the same time the order is stored so stock stays in sync.
-            product.Stock -= line.Quantity;
-            product.LastModifiedAt = changedAt;
-            order.Items.Add(new OrderItem
+            var totalAmount = request.Items.Sum(line => products[line.ProductId].Price * line.Quantity);
+            var changedAt = DateTime.UtcNow;
+            var orderSyncId = Guid.NewGuid().ToString("N");
+            var order = new Order
             {
-                SyncId = Guid.NewGuid().ToString("N"),
-                ProductId = product.Id,
-                ProductName = product.Name,
-                Quantity = line.Quantity,
-                UnitPrice = product.Price,
-                LastModifiedAt = changedAt
-            });
-        }
+                SyncId = orderSyncId,
+                OrderNumber = $"ORD{DateTime.UtcNow:yyMMddHHmmssfff}",
+                PaymentMethod = request.PaymentMethod.Trim().ToLowerInvariant(),
+                Status = request.PaymentMethod.Equals("cash", StringComparison.OrdinalIgnoreCase) ? "paid" : "pending",
+                CreatedAt = changedAt,
+                LastModifiedAt = changedAt,
+                ReferenceNumber = string.IsNullOrWhiteSpace(request.ReferenceNumber) ? null : request.ReferenceNumber.Trim(),
+                AmountReceived = request.AmountReceived,
+                Change = request.AmountReceived.HasValue ? request.AmountReceived.Value - totalAmount : null,
+                TotalAmount = totalAmount
+            };
 
-        db.Orders.Add(order);
-        foreach (var product in products.Values)
+            foreach (var line in request.Items)
+            {
+                var product = products[line.ProductId];
+                product.SyncId ??= Guid.NewGuid().ToString("N");
+                // Reduce inventory at the same time the order is stored so stock stays in sync.
+                product.Stock -= line.Quantity;
+                product.LastModifiedAt = changedAt;
+                order.Items.Add(new OrderItem
+                {
+                    SyncId = Guid.NewGuid().ToString("N"),
+                    ProductId = product.Id,
+                    ProductName = product.Name,
+                    Quantity = line.Quantity,
+                    UnitPrice = product.Price,
+                    LastModifiedAt = changedAt
+                });
+            }
+
+            db.Orders.Add(order);
+            foreach (var product in products.Values)
+            {
+                await syncQueue.QueueUpsertAsync(db, "product", product.SyncId!, changedAt);
+            }
+
+            await syncQueue.QueueUpsertAsync(db, "order", order.SyncId!, changedAt);
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            await db.Entry(order).Collection(item => item.Items).LoadAsync();
+
+            return CreatedAtAction(nameof(GetOrder), new { id = order.Id }, order.ToDto());
+        }
+        catch
         {
-            await syncQueue.QueueUpsertAsync(db, "product", product.SyncId!, changedAt);
+            await transaction.RollbackAsync();
+            throw;
         }
-
-        await syncQueue.QueueUpsertAsync(db, "order", order.SyncId!, changedAt);
-        await db.SaveChangesAsync();
-
-        await db.Entry(order).Collection(item => item.Items).LoadAsync();
-
-        return CreatedAtAction(nameof(GetOrder), new { id = order.Id }, order.ToDto());
     }
 
     [HttpPatch("{id:int}/status")]
