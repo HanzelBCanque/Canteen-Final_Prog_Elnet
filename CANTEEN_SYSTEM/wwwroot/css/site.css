@@ -224,25 +224,25 @@ button:disabled {
 
 .hero-burger {
   position: absolute;
-  left: 2rem;
-  top: 6rem;
-  width: 33rem;
+  left: -10rem;
+  top: -2rem;
+  width: 55rem;
   transform: rotate(10deg);
 }
 
 .hero-drink {
   position: absolute;
-  right: 11.5rem;
-  top: -1.4rem;
-  width: 8.3rem;
+  right: 5rem;
+  top: -5rem;
+  width: 15rem;
   transform: rotate(-5deg);
 }
 
 .hero-fries {
   position: absolute;
-  right: 5rem;
-  bottom: 3.8rem;
-  width: 14rem;
+  right: -2rem;
+  bottom: -2rem;
+  width: 25rem;
   transform: rotate(15deg);
 }
 
