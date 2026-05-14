@@ -543,9 +543,9 @@
           <div class="bubble bubble-one"></div>
           <div class="bubble bubble-two"></div>
           <div class="bubble bubble-three"></div>
-          <img class="hero-burger" src="https://www.figma.com/api/mcp/asset/1220abd5-26f6-4c7f-948c-411b53d79926" alt="" />
-          <img class="hero-drink" src="https://www.figma.com/api/mcp/asset/8e32c6aa-3a5d-44b5-b2d4-668b1b0c71fb" alt="" />
-          <img class="hero-fries" src="https://www.figma.com/api/mcp/asset/d64416ba-23ab-44d5-8d1d-0a9ee03447b0" alt="" />
+          <img class="hero-burger" src="/images/image 2 (1).png" alt="" />
+          <img class="hero-drink" src="/images/image 3.png" alt="" />
+          <img class="hero-fries" src="/images/1 1.png" alt="" />
         </div>
         <button class="landing-login" data-action="open-login">LOG IN</button>
       </section>
