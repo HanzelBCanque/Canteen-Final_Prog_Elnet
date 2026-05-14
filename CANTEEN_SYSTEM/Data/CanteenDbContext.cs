@@ -34,7 +34,7 @@ public class CanteenDbContext(DbContextOptions<CanteenDbContext> options) : DbCo
             entity.Property(item => item.LastModifiedAt);
             entity.Property(item => item.Name).HasMaxLength(160);
             entity.Property(item => item.QrCode).HasMaxLength(40);
-            entity.Property(item => item.Pin).HasMaxLength(12);
+            entity.Property(item => item.PinHash).HasMaxLength(100);
             entity.Property(item => item.Role).HasMaxLength(20);
             entity.HasIndex(item => item.QrCode).IsUnique();
             entity.HasIndex(item => item.SyncId).IsUnique();

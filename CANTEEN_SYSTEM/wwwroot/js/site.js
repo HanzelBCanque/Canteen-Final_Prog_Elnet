@@ -6,7 +6,7 @@
   }
 
   const state = {
-    screen: "menu",
+    screen: "landing",
     categories: [],
     products: [],
     orders: [],
@@ -28,6 +28,8 @@
     loggedInEmployee: null,
     filter: "all",
     orderSearch: "",
+    menuSearch: "",
+    staffSection: "dashboard",
     showEmployeeManagement: false,
     showAddEmployee: false,
     employeeForm: { name: "", pin: "", role: "cashier" },
@@ -353,6 +355,7 @@
       state.scannedQR = "";
       state.loginError = "";
       state.showEmployeeManagement = false;
+      state.staffSection = "dashboard";
       await refreshOrders();
       await refreshEmployees();
       render();
@@ -506,85 +509,139 @@
       : "";
   }
 
-  function renderStudentHeader() {
+  function renderBrand() {
     return `
-      <div class="topbar student">
-        <div class="topbar-inner">
-          <div class="topbar-main">
-            <div>
-              <h1>E-Canteen</h1>
-              <p>Cloud-ready canteen ordering</p>
-            </div>
-            ${state.screen !== "status" ? `
-              <button class="cart-button" data-action="goto-cart">
-                Cart
-                ${cartCount() > 0 ? `<span class="cart-count">${cartCount()}</span>` : ""}
-              </button>
-            ` : ""}
-          </div>
-        </div>
+      <div class="brand-mark">
+        <span><strong>QU!CK</strong>SERVE</span>
+        <span class="brand-cloche" aria-hidden="true"></span>
       </div>
     `;
   }
 
-  function renderMenuScreen() {
-    const filtered = state.selectedCategory === 1
-      ? state.products
-      : state.products.filter(product => product.categoryId === state.selectedCategory);
+  function renderStudentHeader() {
+    if (state.screen !== "landing") {
+      return "";
+    }
 
     return `
-      <section class="screen">
-        <div class="catalog-lead">
-          <div>
-            <h2 class="section-title">Choose Your Meal</h2>
-            <p class="meta">Tap quickly and browse more items per screen on mobile.</p>
-          </div>
-          <div class="results-chip">${filtered.length} item${filtered.length === 1 ? "" : "s"}</div>
+      <header class="student-header ${state.screen === "landing" ? "hero-header" : ""}">
+        ${renderBrand()}
+      </header>
+    `;
+  }
+
+  function renderLandingScreen() {
+    return `
+      <section class="landing-screen">
+        <div class="landing-copy">
+          <h1>Order Your Favorite<br />Food Easily</h1>
+          <p>A smarter way to satisfy your cravings. Order in just a few taps and have your food prepared fresh and ready on time.</p>
+          <button class="btn-main landing-cta" data-action="start-order">ORDER HERE &rarr;</button>
         </div>
-        <div class="category-tabs">
-          ${state.categories.map(category => `
-            <button class="pill ${state.selectedCategory === category.id ? "active student" : ""}" data-action="set-category" data-id="${category.id}">
-              ${escapeHtml(category.name)}
+        <div class="landing-art" aria-hidden="true">
+          <div class="hero-disc"></div>
+          <div class="bubble bubble-one"></div>
+          <div class="bubble bubble-two"></div>
+          <div class="bubble bubble-three"></div>
+          <img class="hero-burger" src="https://www.figma.com/api/mcp/asset/1220abd5-26f6-4c7f-948c-411b53d79926" alt="" />
+          <img class="hero-drink" src="https://www.figma.com/api/mcp/asset/8e32c6aa-3a5d-44b5-b2d4-668b1b0c71fb" alt="" />
+          <img class="hero-fries" src="https://www.figma.com/api/mcp/asset/d64416ba-23ab-44d5-8d1d-0a9ee03447b0" alt="" />
+        </div>
+        <button class="landing-login" data-action="open-login">LOG IN</button>
+      </section>
+    `;
+  }
+
+  function renderMenuScreen() {
+    const byCategory = state.selectedCategory === 1
+      ? state.products
+      : state.products.filter(product => product.categoryId === state.selectedCategory);
+    const search = normalize(state.menuSearch);
+    const filtered = search
+      ? byCategory.filter(product =>
+          normalize(product.name).includes(search) ||
+          normalize(getCategoryLabel(product.categoryId)).includes(search)
+        )
+      : byCategory;
+
+    return `
+      <section class="quick-layout">
+        <aside class="quick-sidebar">
+          ${renderBrand()}
+          <nav class="quick-nav">
+            ${state.categories.map(category => `
+              <button class="side-tab ${state.selectedCategory === category.id ? "active" : ""}" data-action="set-category" data-id="${category.id}">
+                ${escapeHtml(category.name)}
+              </button>
+            `).join("")}
+          </nav>
+          <button class="sidebar-back" data-action="back-landing">&larr; Back</button>
+        </aside>
+        <main class="quick-main">
+          <div class="menu-toolbar">
+            <div class="menu-title">
+              <span>MENU</span>
+              <span aria-hidden="true">⌄</span>
+            </div>
+            <label class="search-box">
+              <span aria-hidden="true"></span>
+              <input name="menuSearch" type="search" placeholder="Search foods here..." value="${escapeHtml(state.menuSearch)}" />
+            </label>
+            <button class="cart-button" data-action="goto-cart">
+              <span class="cart-icon">cart</span>
+              <span>ORDER NOW &rarr;</span>
+              ${cartCount() > 0 ? `<span class="cart-count">${cartCount()}</span>` : ""}
             </button>
-          `).join("")}
-        </div>
-        <div class="grid-cards">
-          ${filtered.map(product => {
-            const inCart = getCartItem(product.id)?.quantity || 0;
-            return `
-              <article class="card product-card">
-                <div class="card-image-wrap">
-                  <img class="card-image" src="${escapeHtml(product.imageUrl)}" alt="${escapeHtml(product.name)}" />
-                  ${product.stock === 0 ? `<div class="out-of-stock">OUT OF STOCK</div>` : ""}
-                  ${inCart > 0 && product.stock > 0 ? `<div class="badge-cart">Cart ${inCart}</div>` : ""}
-                </div>
-                <div class="card-body">
-                  <div class="mini-label">${escapeHtml(getCategoryLabel(product.categoryId))}</div>
-                  <h3 class="product-name">${escapeHtml(product.name)}</h3>
-                  <div class="price-row">
-                    <span class="price">${peso(product.price)}</span>
-                    <span class="stock">Stock: ${product.stock}</span>
+          </div>
+          <div class="product-grid">
+            ${filtered.map(product => {
+              const inCart = getCartItem(product.id)?.quantity || 0;
+              const available = product.stock > 0;
+              return `
+                <article class="quick-product">
+                  <img class="quick-product-image" src="${escapeHtml(product.imageUrl)}" alt="${escapeHtml(product.name)}" />
+                  ${inCart > 0 && available ? `<div class="badge-cart">${inCart}</div>` : ""}
+                  <div class="quick-product-info">
+                    <h3>${escapeHtml(product.name)}</h3>
+                    <strong>${peso(product.price)}</strong>
                   </div>
-                  <button class="btn-main" data-action="add-cart" data-id="${product.id}" ${product.stock === 0 ? "disabled" : ""}>
-                    Add to Cart
+                  <div class="availability ${available ? "yes" : "no"}">${available ? "Available" : "Not Available"}</div>
+                  <button class="btn-main add-cart-btn" data-action="add-cart" data-id="${product.id}" ${available ? "" : "disabled"}>
+                    ADD TO CART
                   </button>
-                </div>
-              </article>
-            `;
-          }).join("")}
-        </div>
+                </article>
+              `;
+            }).join("")}
+            ${!filtered.length ? `
+              <div class="empty-card">
+                <h2 class="section-title">No menu items found</h2>
+                <p class="meta">Try another category or search term.</p>
+              </div>
+            ` : ""}
+          </div>
+        </main>
       </section>
     `;
   }
 
   function renderCartScreen() {
+    const subtotal = totalAmount();
+    const tax = subtotal * 0.12 / 1.12;
+
     if (!state.cart.length) {
       return `
-        <section class="screen narrow">
+        <section class="cart-page">
+          <div class="menu-toolbar cart-toolbar">
+            <div class="menu-title">Order <span aria-hidden="true">⌄</span></div>
+            <label class="search-box">
+              <span aria-hidden="true"></span>
+              <input name="menuSearch" type="search" placeholder="Search your foods..." value="${escapeHtml(state.menuSearch)}" />
+            </label>
+            <button class="sidebar-back" data-action="goto-menu">&larr; Back</button>
+          </div>
           <div class="empty-card">
-            <div class="empty-icon status-icon completed">Bag</div>
             <h2 class="section-title">Your cart is empty</h2>
-            <p class="meta">Add some delicious items to get started.</p>
+            <p class="meta">Add items from the menu before checkout.</p>
             <button class="btn-main" data-action="goto-menu">Browse Menu</button>
           </div>
         </section>
@@ -592,43 +649,57 @@
     }
 
     return `
-      <section class="screen">
-        <h2 class="section-title">Your Cart</h2>
-        <div class="list-stack">
-          ${state.cart.map(item => `
-            <article class="card cart-item">
-              <img class="cart-thumb" src="${escapeHtml(item.product.imageUrl)}" alt="${escapeHtml(item.product.name)}" />
-              <div style="flex:1">
-                <div class="order-header">
-                  <div>
-                    <h3 class="product-name">${escapeHtml(item.product.name)}</h3>
-                    <div class="price">${peso(item.product.price)}</div>
-                  </div>
-                  <div class="section-title">${peso(item.product.price * item.quantity)}</div>
-                </div>
-                <div class="qty-row">
-                  <button class="btn-icon minus" data-action="decrease-cart" data-id="${item.product.id}">-</button>
-                  <span class="qty-value">${item.quantity}</span>
-                  <button class="btn-icon plus" data-action="increase-cart" data-id="${item.product.id}" ${item.quantity >= item.product.stock ? "disabled" : ""}>+</button>
-                  <button class="btn-icon trash" data-action="remove-cart" data-id="${item.product.id}">X</button>
-                </div>
-              </div>
-            </article>
-          `).join("")}
+      <section class="cart-page">
+        <div class="menu-toolbar cart-toolbar">
+          <div class="menu-title">Order <span aria-hidden="true">⌄</span></div>
+          <label class="search-box">
+            <span aria-hidden="true"></span>
+            <input name="menuSearch" type="search" placeholder="Search your foods..." value="${escapeHtml(state.menuSearch)}" />
+          </label>
+          <button class="sidebar-back" data-action="goto-menu">&larr; Back</button>
         </div>
-        <div class="screen" style="padding:1rem 0 0">
-          <button class="btn-secondary" data-action="goto-menu">Continue Shopping</button>
+        <div class="cart-heading">
+          <h2>Your Cart</h2>
+          <button class="outline-pill" type="button">Add-Ons +</button>
+        </div>
+        <div class="cart-layout">
+          <div class="cart-list-panel">
+            ${state.cart.map(item => `
+              <article class="cart-line">
+                <img class="cart-thumb" src="${escapeHtml(item.product.imageUrl)}" alt="${escapeHtml(item.product.name)}" />
+                <div class="cart-line-copy">
+                  <h3>${escapeHtml(item.product.name)}</h3>
+                  <strong>Price: ${peso(item.product.price)}</strong>
+                </div>
+                <div class="cart-line-actions">
+                  <span>Quantity:</span>
+                  <div class="qty-stepper">
+                    <button data-action="decrease-cart" data-id="${item.product.id}">-</button>
+                    <strong>${item.quantity}</strong>
+                    <button data-action="increase-cart" data-id="${item.product.id}" ${item.quantity >= item.product.stock ? "disabled" : ""}>+</button>
+                  </div>
+                  <div class="cart-mini-actions">
+                    <button class="customize-btn" type="button">Customize</button>
+                    <button class="delete-btn" data-action="remove-cart" data-id="${item.product.id}">Delete</button>
+                  </div>
+                </div>
+              </article>
+            `).join("")}
+          </div>
+          <aside class="order-summary-panel">
+            <h2>Your Order</h2>
+            <div class="summary-row"><span>Item(s):</span><strong>${cartCount()}</strong></div>
+            <div class="summary-row"><span>Order Type:</span><strong>DINE-IN⌄</strong></div>
+            <hr />
+            <div class="summary-row"><span>Subtotal:</span><strong>${peso(subtotal - tax)}</strong></div>
+            <div class="summary-row"><span>Tax:</span><strong>${peso(tax)}</strong></div>
+            <div class="summary-row total"><span>Total Amount:</span><strong>${peso(subtotal)}</strong></div>
+            <button class="btn-main checkout-primary" data-action="goto-checkout">Proceed to Checkout</button>
+            <p class="meta">Other Payment Methods:</p>
+            <button class="payment-chip" data-action="select-payment" data-method="gcash">Gcash Payment</button>
+          </aside>
         </div>
       </section>
-      <div class="checkout-bar">
-        <div class="checkout-inner">
-          <div class="line-row" style="margin-bottom:0.75rem">
-            <span class="section-title" style="margin:0">Total Amount:</span>
-            <span class="price">${peso(totalAmount())}</span>
-          </div>
-          <button class="btn-main" data-action="goto-checkout">Proceed to Checkout</button>
-        </div>
-      </div>
     `;
   }
 
@@ -792,7 +863,8 @@
 
   function renderStudentView() {
     let content = "";
-    if (state.loading) content = renderLoading();
+    if (state.screen === "landing") content = renderLandingScreen();
+    if (state.screen !== "landing" && state.loading) content = renderLoading();
     if (!state.loading && state.screen === "menu") content = renderMenuScreen();
     if (!state.loading && state.screen === "cart") content = renderCartScreen();
     if (!state.loading && state.screen === "checkout") content = renderCheckoutScreen();
@@ -803,7 +875,7 @@
         ${renderStudentHeader()}
         ${renderBanner()}
         ${content}
-        <button class="staff-login" data-action="open-login">Staff Login</button>
+        ${state.screen !== "landing" ? `<button class="staff-login" data-action="open-login">Staff Login</button>` : ""}
         ${state.loginOpen ? renderLoginModal() : ""}
       </div>
     `;
@@ -818,70 +890,54 @@
 
   function renderStaffHeader() {
     const employee = state.loggedInEmployee;
-    const metrics = getOrderMetrics();
     return `
-      <div class="topbar staff">
-        <div class="topbar-inner">
-          <div class="topbar-main">
-            <div>
-              <h1>${state.showEmployeeManagement ? "Employee Management" : "Cashier Dashboard"}</h1>
-              <p>Welcome, ${escapeHtml(employee.name)} (${escapeHtml(employee.role)})</p>
-            </div>
-            <div class="topbar-actions">
-              ${employee.role === "admin" ? `
-                <button class="btn-light" data-action="toggle-employee-management">
-                  ${state.showEmployeeManagement ? "Back to Dashboard" : "Manage Staff"}
-                </button>
-              ` : ""}
-              <button class="btn-danger" data-action="logout-staff">Logout</button>
-            </div>
-          </div>
-          ${!state.showEmployeeManagement ? `
-            <div class="summary-grid dashboard-summary">
-              <article class="summary-card queue-summary urgent">
-                <div class="mini-label">Needs attention</div>
-                <h3>${metrics.pending}</h3>
-                <div class="meta">Pending payments</div>
-              </article>
-              <article class="summary-card queue-summary info">
-                <div class="mini-label">Ready to cook</div>
-                <h3>${metrics.paid}</h3>
-                <div class="meta">Paid orders waiting</div>
-              </article>
-              <article class="summary-card queue-summary calm">
-                <div class="mini-label">In kitchen</div>
-                <h3>${metrics.preparing}</h3>
-                <div class="meta">Preparing now</div>
-              </article>
-              <article class="summary-card queue-summary neutral">
-                <div class="mini-label">Finished today</div>
-                <h3>${metrics.completedToday}</h3>
-                <div class="meta">Completed orders</div>
-              </article>
-            </div>
-            <div class="dashboard-toolbar">
-              <input class="input blue dashboard-search" name="orderSearch" type="text" placeholder="Search order no., item, payment, ref..." value="${escapeHtml(state.orderSearch)}" />
-              <div class="results-chip">${getVisibleOrders().length} visible</div>
-            </div>
-            <div class="topbar-tabs">
-              ${["all", "pending", "paid", "preparing", "completed"].map(status => `
-                <button class="pill ${state.filter === status ? "active staff" : ""}" data-action="set-filter" data-status="${status}">
-                  ${status.charAt(0).toUpperCase() + status.slice(1)} (${getFilteredCount(status)})
-                </button>
-              `).join("")}
-            </div>
+      <header class="admin-topline">
+        <div></div>
+        <p>Welcome, <span>${escapeHtml(employee.role === "admin" ? "Admin" : employee.name)}</span>!</p>
+      </header>
+    `;
+  }
+
+  function renderStaffSidebar() {
+    const items = [
+      ["dashboard", "Dashboard"],
+      ["menu", "Menu"],
+      ["orders", "Orders"],
+      ["stock", "Stock"],
+      ["report", "Report"]
+    ];
+
+    return `
+      <aside class="admin-sidebar">
+        ${renderBrand()}
+        <nav class="quick-nav admin-nav">
+          ${items.map(([section, label]) => `
+            <button class="side-tab ${state.staffSection === section ? "active" : ""}" data-action="set-staff-section" data-section="${section}">
+              ${label}
+            </button>
+          `).join("")}
+          ${state.loggedInEmployee.role === "admin" ? `
+            <button class="side-tab ${state.staffSection === "staff" ? "active" : ""}" data-action="set-staff-section" data-section="staff">
+              Staff
+            </button>
           ` : ""}
-        </div>
-      </div>
+        </nav>
+        <button class="logout-link" data-action="logout-staff">Log Out</button>
+      </aside>
     `;
   }
 
   function renderDashboard() {
     const visible = getVisibleOrders();
+    const metrics = getOrderMetrics();
 
     if (!visible.length) {
       return `
-        <section class="screen">
+        <section class="admin-content">
+          <div class="admin-hero">
+            <h1>Dashboard Overview</h1>
+            <p>Real-time status of your canteen operations.</p>
+          </div>
           <div class="empty-card">
             <h2 class="section-title">No orders found</h2>
             <p class="meta">Try another status tab or clear your search.</p>
@@ -891,9 +947,27 @@
     }
 
     return `
-      <section class="screen">
+      <section class="admin-content">
         ${renderBanner()}
-        <div class="list-stack">
+        <div class="admin-hero">
+          <h1>${state.staffSection === "report" ? "Sales Report" : "Dashboard Overview"}</h1>
+          <p>${state.staffSection === "report" ? "Daily Performance Report." : "Real-time status of your canteen operations."}</p>
+        </div>
+        <div class="admin-metrics">
+          <article><span>Pending Payments</span><strong>${metrics.pending}</strong><small>needs review</small></article>
+          <article><span>Paid Orders</span><strong>${metrics.paid}</strong><small>ready to prepare</small></article>
+          <article><span>Preparing</span><strong>${metrics.preparing}</strong><small>in kitchen</small></article>
+          <article><span>Completed Today</span><strong>${metrics.completedToday}</strong><small>served orders</small></article>
+        </div>
+        <div class="admin-filters">
+          <input class="input blue dashboard-search" name="orderSearch" type="text" placeholder="Search order no., item, payment, ref..." value="${escapeHtml(state.orderSearch)}" />
+          ${["all", "pending", "paid", "preparing", "completed"].map(status => `
+            <button class="filter-chip ${state.filter === status ? "active" : ""}" data-action="set-filter" data-status="${status}">
+              ${status.charAt(0).toUpperCase() + status.slice(1)} (${getFilteredCount(status)})
+            </button>
+          `).join("")}
+        </div>
+        <div class="admin-order-list">
           ${visible.map(order => `
             <article class="order-card card compact-order ${order.status}">
               <div class="order-header">
@@ -935,7 +1009,11 @@
 
   function renderEmployeeManagement() {
     return `
-      <section class="screen">
+      <section class="admin-content">
+        <div class="admin-hero">
+          <h1>Employee Management</h1>
+          <p>Create staff accounts and manage QR access.</p>
+        </div>
         ${renderBanner()}
         <div style="display:flex; justify-content:flex-end; margin-bottom:1rem">
           <button class="btn-main" style="width:auto; background:#2563eb" data-action="open-add-employee">Add Employee</button>
@@ -970,10 +1048,15 @@
   }
 
   function renderStaffView() {
+    const content = state.staffSection === "staff"
+      ? renderEmployeeManagement()
+      : renderDashboard();
+
     return `
-      <div class="app-shell">
+      <div class="admin-shell">
+        ${renderStaffSidebar()}
         ${renderStaffHeader()}
-        ${state.showEmployeeManagement ? renderEmployeeManagement() : renderDashboard()}
+        ${content}
       </div>
     `;
   }
@@ -1166,6 +1249,8 @@
     const productId = Number(target.dataset.id);
     const cartItem = Number.isNaN(productId) ? null : getCartItem(productId);
 
+    if (action === "start-order") state.screen = "menu";
+    if (action === "back-landing") state.screen = "landing";
     if (action === "set-category") state.selectedCategory = Number(target.dataset.id);
     if (action === "add-cart") addToCart(productId);
     if (action === "goto-cart") state.screen = "cart";
@@ -1177,6 +1262,7 @@
     if (action === "select-payment") {
       state.paymentMethod = target.dataset.method;
       state.paymentError = "";
+      state.screen = "checkout";
     }
     if (action === "back-payment") resetPaymentState();
     if (action === "confirm-cash") {
@@ -1243,9 +1329,14 @@
     }
     if (action === "logout-staff") {
       state.loggedInEmployee = null;
+      state.screen = "landing";
       state.showEmployeeManagement = false;
       state.filter = "all";
       await loadBootstrapData();
+    }
+    if (action === "set-staff-section") {
+      state.staffSection = target.dataset.section;
+      state.showEmployeeManagement = state.staffSection === "staff";
     }
     if (action === "set-filter") state.filter = target.dataset.status;
     if (action === "toggle-employee-management") state.showEmployeeManagement = !state.showEmployeeManagement;
@@ -1320,6 +1411,10 @@
     }
     if (target.name === "orderSearch") {
       state.orderSearch = target.value;
+      shouldRender = true;
+    }
+    if (target.name === "menuSearch") {
+      state.menuSearch = target.value;
       shouldRender = true;
     }
 

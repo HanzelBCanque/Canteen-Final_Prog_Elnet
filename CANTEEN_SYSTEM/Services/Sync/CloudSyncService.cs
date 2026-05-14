@@ -154,7 +154,7 @@ public class CloudSyncService(ILogger<CloudSyncService> logger, IOptions<CloudSy
                 LastModifiedAt = localEntity.LastModifiedAt,
                 Name = localEntity.Name,
                 QrCode = localEntity.QrCode,
-                Pin = localEntity.Pin,
+                PinHash = localEntity.PinHash,
                 Role = localEntity.Role,
                 CreatedAt = localEntity.CreatedAt
             });
@@ -164,7 +164,7 @@ public class CloudSyncService(ILogger<CloudSyncService> logger, IOptions<CloudSy
         remoteEntity.LastModifiedAt = localEntity.LastModifiedAt;
         remoteEntity.Name = localEntity.Name;
         remoteEntity.QrCode = localEntity.QrCode;
-        remoteEntity.Pin = localEntity.Pin;
+        remoteEntity.PinHash = localEntity.PinHash;
         remoteEntity.Role = localEntity.Role;
         remoteEntity.CreatedAt = localEntity.CreatedAt;
     }
