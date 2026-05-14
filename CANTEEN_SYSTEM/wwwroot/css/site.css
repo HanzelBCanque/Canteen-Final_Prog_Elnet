@@ -224,17 +224,17 @@ button:disabled {
 
 .hero-burger {
   position: absolute;
-  left: -10rem;
+  left: -5rem;
   top: -2rem;
-  width: 55rem;
+  width: 45rem;
   transform: rotate(10deg);
 }
 
 .hero-drink {
   position: absolute;
-  right: 5rem;
-  top: -5rem;
-  width: 15rem;
+  right: 2rem;
+  top: 1rem;
+  width: 17rem;
   transform: rotate(-5deg);
 }
 
